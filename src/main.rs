@@ -1,9 +1,9 @@
 use clap::Parser;
-use hound::{WavWriter, SampleFormat};
+use hound::{SampleFormat, WavWriter};
 use std::{
     io::{BufRead, BufReader},
     process::{Child, ChildStdout, Command, Stdio},
-    time::{Instant, Duration}
+    time::{Duration, Instant},
 };
 
 use ringbuf::LocalRb;
@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         reader.consume(len);
-    };
+    }
 
     child.kill().expect("failed to kill yt-dlp process");
     println!("wrote to {} file done.", args.output);
@@ -99,7 +99,12 @@ fn get_yt_dlp_stdout(url: &str) -> (Child, ChildStdout) {
     (child, stdout)
 }
 
-fn write_wav_file(file_path: &str, audio_data: &[f32], sample_rate: u32, num_channels: u16) -> Result<(), hound::Error> {
+fn write_wav_file(
+    file_path: &str,
+    audio_data: &[f32],
+    sample_rate: u32,
+    num_channels: u16,
+) -> Result<(), hound::Error> {
     let spec = hound::WavSpec {
         channels: num_channels,
         sample_rate,

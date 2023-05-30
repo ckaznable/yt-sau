@@ -6,6 +6,6 @@ edition = "2021"
 [dependencies]
 symphonia = { version = "0.5.2", features=["aac", "mpa"] }
 clap = { version = "4.2.5", features = ["derive"] }
-mpeg2ts = "0.2"
 ringbuf = "0.3.3"
 hound = "3.5.0"
+yt_tsu = "0.1.0"

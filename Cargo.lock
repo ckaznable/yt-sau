@@ -588,7 +588,16 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "hound",
- "mpeg2ts",
  "ringbuf",
  "symphonia",
+ "yt_tsu",
+]
+
+[[package]]
+name = "yt_tsu"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd9ec4c70867cf4a08d56895da7761d801b999f49d29e79120d257c7ea4a6795"
+dependencies = [
+ "mpeg2ts",
 ]

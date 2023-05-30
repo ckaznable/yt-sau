@@ -1,9 +1,5 @@
 use std::{fmt::Display, io::Cursor};
 
-use mpeg2ts::{
-    es::StreamType,
-    ts::{ReadTsPacket, TsPacketReader, TsPayload},
-};
 use symphonia::core::{
     audio::AudioBuffer,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
@@ -12,6 +8,7 @@ use symphonia::core::{
     meta::MetadataOptions,
     probe::Hint,
 };
+use yt_tsu::audio::extract_ts_audio;
 
 #[derive(Debug)]
 pub enum Error {
@@ -140,52 +137,4 @@ fn get_mono_f32(raw: Vec<u8>) -> Result<(Vec<f32>, f64), Error> {
     }
 
     Ok((data, dur / (rate * planes_num)))
-}
-
-fn extract_ts_audio(raw: &[u8]) -> Vec<u8> {
-    let cursor = Cursor::new(raw);
-    let mut reader = TsPacketReader::new(cursor);
-
-    let mut data: Vec<u8> = vec![];
-    let mut audio_pid: u16 = 0;
-
-    loop {
-        match reader.read_ts_packet() {
-            Ok(Some(packet)) => {
-                use TsPayload::*;
-
-                let pid = packet.header.pid.as_u16();
-                let is_audio_pid = pid == audio_pid;
-
-                if let Some(payload) = packet.payload {
-                    match payload {
-                        Pmt(pmt) => {
-                            if let Some(el) = pmt
-                                .table
-                                .iter()
-                                .find(|el| el.stream_type == StreamType::AdtsAac)
-                            {
-                                audio_pid = el.elementary_pid.as_u16();
-                            }
-                        }
-                        Pes(pes) => {
-                            if pes.header.stream_id.is_audio() && is_audio_pid {
-                                data.extend_from_slice(&pes.data);
-                            }
-                        }
-                        Raw(bytes) => {
-                            if is_audio_pid {
-                                data.extend_from_slice(&bytes);
-                            }
-                        }
-                        _ => (),
-                    }
-                }
-            }
-            Ok(None) => break,
-            _ => (),
-        }
-    }
-
-    data
 }
