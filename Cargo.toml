@@ -9,3 +9,12 @@ clap = { version = "4.2.5", features = ["derive"] }
 ringbuf = "0.3.3"
 hound = "3.5.0"
 yt_tsu = "0.1.0"
+rusty_ytdl = { version = "0.6.1" }
+tokio = { version = "1.28.2", features = ["full"] }
+
+[profile.release]
+opt-level = 'z'     # Optimize for size
+lto = true          # Enable link-time optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = 'abort'     # Abort on panic
+strip = true        # Strip symbols from binary*

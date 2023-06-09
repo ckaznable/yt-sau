@@ -1,10 +1,6 @@
 use clap::Parser;
 use hound::{SampleFormat, WavWriter};
-use std::{
-    io::{BufRead, BufReader},
-    process::{Child, ChildStdout, Command, Stdio},
-    time::{Duration, Instant},
-};
+use rusty_ytdl::{VideoOptions, VideoQuality, VideoSearchOptions, Video};
 
 use ringbuf::LocalRb;
 
@@ -31,7 +27,8 @@ struct Args {
     output: String,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main()]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     if args.sec.is_none() && args.millisecond.is_none() {
@@ -44,59 +41,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.sec.unwrap()
     };
 
-    let rb_size = 44100 * secs;
-    let mut rb = LocalRb::<u8, Vec<_>>::new(rb_size);
+    let rb_size = 22050 * secs;
+    let mut rb = LocalRb::<f32, Vec<_>>::new(rb_size);
     let (mut prod, mut cons) = rb.split_ref();
 
-    let now = Instant::now();
-    let collect_time = Duration::from_secs(secs as u64);
-
-    let (mut child, stdout) = get_yt_dlp_stdout(&args.url);
-    let mut reader = BufReader::new(stdout);
-
-    let mut process = || {
-        let data = cons.pop_iter().collect::<Vec<u8>>();
-        let audio_data = audio::get_audio_data(data.as_ref()).unwrap();
-        let _ = write_wav_file(args.output.as_str(), audio_data.0.as_ref(), 22050, 1);
+    let video_options = VideoOptions {
+        quality: VideoQuality::Lowest,
+        filter: VideoSearchOptions::VideoAudio,
+        ..Default::default()
     };
 
-    loop {
-        let buf = reader.fill_buf()?;
-        if buf.is_empty() {
+    let video = Video::new_with_options(args.url, video_options).unwrap();
+    let stream = video.stream().await.unwrap();
+
+    while let Some(chunk) = stream.chunk().await.unwrap() {
+        let (data, _) = audio::get_audio_data(chunk.as_ref()).unwrap();
+        println!("get {}kb and {}kb audio data", chunk.len() / 1024, data.len() / 1024);
+        prod.push_slice(data.as_ref());
+
+        if prod.is_full() {
+            let data = cons.pop_iter().collect::<Vec<f32>>();
+            let _ = write_wav_file(args.output.as_str(), data.as_ref(), 22050, 1);
             break;
         }
-
-        let len = buf.len();
-        prod.push_slice(buf);
-
-        if now.elapsed() >= collect_time {
-            process();
-            break;
-        }
-
-        reader.consume(len);
     }
 
-    child.kill().expect("failed to kill yt-dlp process");
     println!("wrote to {} file done.", args.output);
     Ok(())
-}
-
-fn get_yt_dlp_stdout(url: &str) -> (Child, ChildStdout) {
-    let mut cmd = Command::new("yt-dlp");
-    cmd.arg(url)
-        .args(["-f", "w"])
-        .args(["--quiet"])
-        .args(["-o", "-"]);
-
-    let mut child = cmd
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("failed to execute yt-dlp");
-
-    let stdout = child.stdout.take().expect("invalid stdout stream");
-
-    (child, stdout)
 }
 
 fn write_wav_file(
