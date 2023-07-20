@@ -1,6 +1,6 @@
 # youtube streaming recoder
 
-record youtube streaming mono audio wav file in one commend.
+record youtube streaming mono audio to wav file in one commend.
 
 ## LICENSE
 
